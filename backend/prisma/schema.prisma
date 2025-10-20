@@ -1,0 +1,19 @@
+// Este ficheiro define os modelos do nosso banco de dados.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL") // Lê a URL do nosso ficheiro .env
+}
+
+// Modelo para a tabela de Usuários do Brokerama Scan
+model User {
+  id           Int      @id @default(autoincrement()) // Chave primária, auto-incremental
+  email        String   @unique // O email deve ser único para cada usuário
+  name         String?  // O '?' indica que este campo é opcional
+  passwordHash String   // Aqui guardaremos a senha já criptografada
+  createdAt    DateTime @default(now()) // Data de criação, preenchida automaticamente
+}
