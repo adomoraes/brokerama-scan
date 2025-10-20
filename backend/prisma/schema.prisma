@@ -9,11 +9,25 @@ datasource db {
   url      = env("DATABASE_URL") // Lê a URL do nosso ficheiro .env
 }
 
-// Modelo para a tabela de Usuários do Brokerama Scan
 model User {
-  id           Int      @id @default(autoincrement()) // Chave primária, auto-incremental
-  email        String   @unique // O email deve ser único para cada usuário
-  name         String?  // O '?' indica que este campo é opcional
-  passwordHash String   // Aqui guardaremos a senha já criptografada
-  createdAt    DateTime @default(now()) // Data de criação, preenchida automaticamente
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  // RELAÇÃO: Um usuário pode ter VÁRIOS scanners
+  scanners     Scanner[]
+}
+
+model Scanner {
+  id            Int      @id @default(autoincrement())
+  assetTicker   String   // Ex: "PETR4", "MGLU3"
+  conditionType String   // Ex: "PRICE_ABOVE", "VOLUME_BELOW"
+  value         Float    // O valor a ser comparado (ex: 45.50)
+  createdAt     DateTime @default(now())
+
+  // RELAÇÃO: Este scanner pertence a UM usuário
+  owner         User     @relation(fields: [ownerId], references: [id])
+  ownerId       Int      // Chave estrangeira para o User
 }
