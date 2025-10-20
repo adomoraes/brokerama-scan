@@ -17,17 +17,29 @@ model User {
   createdAt    DateTime @default(now())
 
   // RELAÇÃO: Um usuário pode ter VÁRIOS scanners
-  scanners     Scanner[]
+  scanners Scanner[]
 }
 
 model Scanner {
   id            Int      @id @default(autoincrement())
-  assetTicker   String   // Ex: "PETR4", "MGLU3"
-  conditionType String   // Ex: "PRICE_ABOVE", "VOLUME_BELOW"
-  value         Float    // O valor a ser comparado (ex: 45.50)
+  assetTicker   String
+  conditionType String
+  value         Float
+  isActive      Boolean  @default(true) // NOVO: Para controlar se o scanner está ativo
   createdAt     DateTime @default(now())
-
-  // RELAÇÃO: Este scanner pertence a UM usuário
   owner         User     @relation(fields: [ownerId], references: [id])
-  ownerId       Int      // Chave estrangeira para o User
+  ownerId       Int
+
+  // RELAÇÃO: Um scanner pode ter vários alertas (histórico)
+  alerts Alert[]
+}
+
+model Alert {
+  id          Int      @id @default(autoincrement())
+  message     String // A mensagem do alerta (ex: "PETR4 ultrapassou R$ 40.50")
+  triggeredAt DateTime @default(now())
+
+  // RELAÇÃO: Este alerta foi gerado por UM scanner
+  scanner   Scanner @relation(fields: [scannerId], references: [id])
+  scannerId Int
 }
