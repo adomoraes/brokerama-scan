@@ -7,7 +7,8 @@ const { runScannerWorker } = require("./worker")
 // Importação das rotas
 const authRoutes = require("./routes/auth")
 const scannerRoutes = require("./routes/scanners")
-const alertRoutes = require("./routes/alerts") // 1. IMPORTAR
+const alertRoutes = require("./routes/alerts")
+const searchRoutes = require("./routes/search")
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -44,11 +45,12 @@ app.get("/api/health", (req, res) => {
 
 // Rota de autenticação
 app.use("/api/auth", authRoutes)
-
 // Rota de scanners (agora protegida pelo middleware)
 app.use("/api/scanners", scannerRoutes)
-
+// Rota de alerts
 app.use("/api/alerts", alertRoutes)
+// Rota do autocomplete
+app.use("/api/search", searchRoutes)
 
 // Inicia o servidor
 app.listen(PORT, () => {
