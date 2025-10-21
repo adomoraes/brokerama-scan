@@ -99,7 +99,17 @@ export const DashboardPage = () => {
 			</header>
 
 			{/* Secção do Formulário (já existente) */}
-			<div className='mb-8'>{/* ... (código do botão e formulário) ... */}</div>
+			<div className='mb-8'>
+				{!showForm ? (
+					<button
+						onClick={() => setShowForm(true)}
+						className='bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105'>
+						Adicionar Novo Scanner
+					</button>
+				) : (
+					<AddScannerForm onScannerCreated={handleScannerCreated} onCancel={() => setShowForm(false)} />
+				)}
+			</div>
 
 			{/* 5. NOVA SECÇÃO para exibir Alertas */}
 			<div className='bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-lg shadow-lg mb-8'>
