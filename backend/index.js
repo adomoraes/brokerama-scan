@@ -7,6 +7,7 @@ const { runScannerWorker } = require("./worker")
 // Importação das rotas
 const authRoutes = require("./routes/auth")
 const scannerRoutes = require("./routes/scanners")
+const alertRoutes = require("./routes/alerts") // 1. IMPORTAR
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -21,9 +22,9 @@ app.use("/api/scanners", scannerRoutes)
 // A string '*/1 * * * *' significa "executar a cada 1 minuto".
 // Para testes, 1 minuto é bom. Em produção, poderia ser a cada 5 ou 15 minutos.
 // Formato: (minuto hora dia-do-mês mês dia-da-semana)
-cron.schedule("*/1 * * * *", () => {
-	runScannerWorker()
-})
+// cron.schedule("*/1 * * * *", () => {
+// 	runScannerWorker()
+// })
 
 app.listen(PORT, () => {
 	console.log(`🚀 Servidor Brokerama Scan rodando em http://localhost:${PORT}`)
@@ -31,7 +32,7 @@ app.listen(PORT, () => {
 	console.log(
 		"[Servidor] Executando o worker pela primeira vez na inicialização..."
 	)
-	runScannerWorker()
+	//runScannerWorker()
 })
 
 // --- ROTAS ---
@@ -46,6 +47,8 @@ app.use("/api/auth", authRoutes)
 
 // Rota de scanners (agora protegida pelo middleware)
 app.use("/api/scanners", scannerRoutes)
+
+app.use("/api/alerts", alertRoutes)
 
 // Inicia o servidor
 app.listen(PORT, () => {
