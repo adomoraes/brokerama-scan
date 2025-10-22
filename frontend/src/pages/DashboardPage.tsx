@@ -301,7 +301,7 @@ function DashboardPage() {
 			)}
 
 			{/* Formulário para Adicionar Scanner */}
-			<div className='mb-6 p-4 border rounded shadow-sm bg-white'>
+			<div className='mb-6 p-4 rounded shadow-sm'>
 				<h2 className='text-xl font-semibold mb-3'>Adicionar Novo Scanner</h2>
 				<AddScannerForm
 					onScannerCreated={handleScannerAdded}
@@ -384,7 +384,7 @@ function DashboardPage() {
 			)}
 
 			{/* Lista de Scanners */}
-			<div className='bg-white p-4 border rounded shadow-sm'>
+			<div className='p-4 rounded shadow-sm'>
 				<h2 className='text-xl font-semibold mb-3'>Scanners Registados</h2>
 				{isLoading ? (
 					<p>A carregar scanners...</p>
@@ -395,7 +395,7 @@ function DashboardPage() {
 						{scanners.map((scanner) => (
 							<li
 								key={scanner.id}
-								className='p-3 border rounded flex flex-col sm:flex-row justify-between items-start sm:items-center bg-gray-50 hover:bg-gray-100'>
+								className='p-3 rounded flex flex-col sm:flex-row justify-between items-start sm:items-center bg-gray-700'>
 								<div>
 									<p className='font-semibold'>
 										{scanner.name}{" "}
