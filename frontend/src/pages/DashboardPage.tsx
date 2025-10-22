@@ -93,7 +93,9 @@ export const DashboardPage = () => {
 		<div className='container mx-auto p-4 md:p-8'>
 			<header className='flex justify-between items-center mb-8'>
 				<h1 className='text-4xl font-bold'>Meu Dashboard</h1>
-				<button onClick={handleLogout} className='bg-red-600 ...'>
+				<button
+					onClick={handleLogout}
+					className='bg-red-600 rounded-lg py-1 px-2 font-bold text-sm'>
 					Logout
 				</button>
 			</header>
@@ -107,7 +109,10 @@ export const DashboardPage = () => {
 						Adicionar Novo Scanner
 					</button>
 				) : (
-					<AddScannerForm onScannerCreated={handleScannerCreated} onCancel={() => setShowForm(false)} />
+					<AddScannerForm
+						onScannerCreated={handleScannerCreated}
+						onCancel={() => setShowForm(false)}
+					/>
 				)}
 			</div>
 
