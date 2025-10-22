@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, type ReactNode } from "react"
 import { FaTrash, FaEdit } from "react-icons/fa"
 import { AddScannerForm } from "../components/AddScannerForm"
-import { toast } from "react-toastify" // NOVO: Importa toast
+import { toast } from "react-toastify"
 
 // Definindo uma interface para o tipo Scanner
 interface Scanner {
@@ -27,7 +27,7 @@ interface EditFormData {
 
 function DashboardPage() {
 	const [scanners, setScanners] = useState<Scanner[]>([])
-	const [error, setError] = useState<string | null>(null) // Mantido para erros gerais da página, toasts serão usados para ações
+	const [error, setError] = useState<string | null>(null)
 	const [isLoading, setIsLoading] = useState<boolean>(true)
 	const [editingScannerId, setEditingScannerId] = useState<number | null>(null)
 	const [editFormData, setEditFormData] = useState<EditFormData>({
@@ -35,21 +35,20 @@ function DashboardPage() {
 		url: "",
 		intervalMinutes: "",
 	})
+	const [showForm, setShowForm] = useState(false)
 
 	const fetchScanners = useCallback(async () => {
 		setIsLoading(true)
 		setError(null)
-		const token = localStorage.getItem("brokerama_token") // Usa a chave correta
+		const token = localStorage.getItem("brokerama_token")
 		if (!token) {
 			setError("Autenticação necessária.")
 			setIsLoading(false)
-			// Poderias redirecionar para login aqui: navigate('/login');
 			return
 		}
 
 		try {
 			const response = await fetch("http://localhost:3001/api/scanners", {
-				// Usa a porta correta
 				headers: {
 					Authorization: `Bearer ${token}`,
 				},
@@ -63,15 +62,9 @@ function DashboardPage() {
 			setScanners(data)
 		} catch (err) {
 			console.error(err)
-			setError(
-				err instanceof Error
-					? err.message
-					: "Ocorreu um erro desconhecido ao buscar scanners."
-			)
-			// NOVO: Mostrar toast de erro ao buscar scanners
-			toast.error(
-				err instanceof Error ? err.message : "Erro ao buscar scanners."
-			)
+			const errorMessage = err instanceof Error ? err.message : "Ocorreu um erro desconhecido ao buscar scanners."
+			setError(errorMessage)
+			toast.error(errorMessage)
 		} finally {
 			setIsLoading(false)
 		}
@@ -81,20 +74,17 @@ function DashboardPage() {
 		fetchScanners()
 	}, [fetchScanners])
 
-	// Função REAL para apagar o scanner (chamada após confirmação)
 	const handleDelete = async (id: number) => {
 		const token = localStorage.getItem("brokerama_token")
 		if (!token) {
-			toast.error("Autenticação necessária.") // ALTERADO: Usa toast
+			toast.error("Autenticação necessária.")
 			return
 		}
 
-		// NOVO: Usar um ID de toast para poder atualizá-lo (loading -> success/error)
 		const toastId = toast.loading("A apagar scanner...")
 
 		try {
 			const response = await fetch(`http://localhost:3001/api/scanners/${id}`, {
-				// Usa a porta correta
 				method: "DELETE",
 				headers: {
 					Authorization: `Bearer ${token}`,
@@ -102,22 +92,17 @@ function DashboardPage() {
 			})
 
 			if (!response.ok) {
-				// Tenta obter mensagem de erro do backend
 				let errorMsg = `Erro ao apagar scanner: ${response.statusText}`
 				try {
 					const errorData = await response.json()
 					errorMsg = errorData.message || errorMsg
-				} catch (_) {} // Ignora erros ao fazer parse do JSON de erro
+				} catch (_) {}
 				throw new Error(errorMsg)
 			}
 
-			// Remove o scanner do estado local após sucesso
-			setScanners((prevScanners) =>
-				prevScanners.filter((scanner) => scanner.id !== id)
-			)
+			setScanners((prevScanners) => prevScanners.filter((scanner) => scanner.id !== id))
 			setError(null)
 
-			// ALTERADO: Atualiza toast para sucesso
 			toast.update(toastId, {
 				render: "Scanner apagado com sucesso!",
 				type: "success",
@@ -126,12 +111,8 @@ function DashboardPage() {
 			})
 		} catch (err) {
 			console.error(err)
-			const errorText =
-				err instanceof Error
-					? err.message
-					: "Erro desconhecido ao apagar scanner."
-			setError(errorText) // Mantém o erro no estado se necessário para outros displays
-			// ALTERADO: Atualiza toast para erro
+			const errorText = err instanceof Error ? err.message : "Erro desconhecido ao apagar scanner."
+			setError(errorText)
 			toast.update(toastId, {
 				render: errorText,
 				type: "error",
@@ -141,14 +122,8 @@ function DashboardPage() {
 		}
 	}
 
-	// NOVO: Função para mostrar o toast de confirmação
 	const handleDeleteConfirmation = (id: number, name: string) => {
-		// Componente customizado para o conteúdo do toast
-		const ConfirmationContent = ({
-			closeToast,
-		}: {
-			closeToast?: () => void
-		}) => (
+		const ConfirmationContent = ({ closeToast }: { closeToast?: () => void }) => (
 			<div>
 				<p className='mb-2'>
 					Tem a certeza que deseja apagar o scanner "{name}"?
@@ -156,14 +131,14 @@ function DashboardPage() {
 				<div className='flex justify-end gap-2'>
 					<button
 						onClick={() => {
-							handleDelete(id) // Chama a função de apagar
-							if (closeToast) closeToast() // Fecha o toast
+							handleDelete(id)
+							if (closeToast) closeToast()
 						}}
 						className='px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700'>
 						Sim, Apagar
 					</button>
 					<button
-						onClick={closeToast} // Apenas fecha o toast
+						onClick={closeToast}
 						className='px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm hover:bg-gray-400'>
 						Cancelar
 					</button>
@@ -171,18 +146,16 @@ function DashboardPage() {
 			</div>
 		)
 
-		// Mostra o toast de confirmação
 		toast.warning(<ConfirmationContent />, {
 			position: "top-center",
-			autoClose: false, // Não fecha automaticamente
-			closeOnClick: false, // Não fecha ao clicar
-			draggable: false, // Impede de arrastar
-			closeButton: false, // Esconde o botão 'x' padrão
+			autoClose: false,
+			closeOnClick: false,
+			draggable: false,
+			closeButton: false,
 			theme: "colored",
 		})
 	}
 
-	// --- Funções de Edição (mantidas como antes) ---
 	const handleEditClick = (scanner: Scanner) => {
 		setEditingScannerId(scanner.id)
 		setEditFormData({
@@ -199,10 +172,7 @@ function DashboardPage() {
 
 	const handleEditFormChange = (event: React.ChangeEvent<HTMLInputElement>) => {
 		const { name, value } = event.target
-		setEditFormData((prevData) => ({
-			...prevData,
-			[name]: value,
-		}))
+		setEditFormData((prevData) => ({ ...prevData, [name]: value }))
 	}
 
 	const handleUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -211,43 +181,35 @@ function DashboardPage() {
 
 		const token = localStorage.getItem("brokerama_token")
 		if (!token) {
-			toast.error("Autenticação necessária.") // Usa toast
+			toast.error("Autenticação necessária.")
 			return
 		}
 
-		if (
-			!editFormData.name ||
-			!editFormData.url ||
-			!editFormData.intervalMinutes
-		) {
-			toast.error("Todos os campos são obrigatórios para edição.") // Usa toast
+		if (!editFormData.name || !editFormData.url || !editFormData.intervalMinutes) {
+			toast.error("Todos os campos são obrigatórios para edição.")
 			return
 		}
 		const intervalNum = parseInt(editFormData.intervalMinutes, 10)
 		if (isNaN(intervalNum) || intervalNum <= 0) {
-			toast.error("O intervalo deve ser um número positivo.") // Usa toast
+			toast.error("O intervalo deve ser um número positivo.")
 			return
 		}
 
-		const toastId = toast.loading("A atualizar scanner...") // NOVO: Toast de loading
+		const toastId = toast.loading("A atualizar scanner...")
 
 		try {
-			const response = await fetch(
-				`http://localhost:3001/api/scanners/${editingScannerId}`,
-				{
-					// Porta correta
-					method: "PUT",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-					body: JSON.stringify({
-						name: editFormData.name,
-						url: editFormData.url,
-						intervalMinutes: intervalNum,
-					}),
-				}
-			)
+			const response = await fetch(`http://localhost:3001/api/scanners/${editingScannerId}`, {
+				method: "PUT",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`,
+				},
+				body: JSON.stringify({
+					name: editFormData.name,
+					url: editFormData.url,
+					intervalMinutes: intervalNum,
+				}),
+			})
 
 			if (!response.ok) {
 				let errorMsg = `Erro ao atualizar scanner: ${response.statusText}`
@@ -272,51 +234,51 @@ function DashboardPage() {
 				type: "success",
 				isLoading: false,
 				autoClose: 3000,
-			}) // NOVO: Toast de sucesso
+			})
 		} catch (err) {
 			console.error(err)
-			const errorText =
-				err instanceof Error
-					? err.message
-					: "Erro desconhecido ao atualizar scanner."
+			const errorText = err instanceof Error ? err.message : "Erro desconhecido ao atualizar scanner."
 			setError(errorText)
 			toast.update(toastId, {
 				render: errorText,
 				type: "error",
 				isLoading: false,
 				autoClose: 5000,
-			}) // NOVO: Toast de erro
+			})
 		}
 	}
-	// --- Fim das Funções de Edição ---
 
 	const handleScannerAdded = (newScanner: Scanner) => {
-		setScanners((prevScanners) => [...prevScanners, newScanner])
-		toast.success("Scanner adicionado com sucesso!") // NOVO: Toast feedback
+		setScanners((prevScanners) => [newScanner, ...prevScanners])
+		setShowForm(false)
+		toast.success("Scanner adicionado com sucesso!")
 	}
 
 	return (
 		<div className='container mx-auto p-4'>
 			<h1 className='text-2xl font-bold mb-4'>Dashboard</h1>
 
-			{/* Mostra erro geral da página, se houver */}
 			{error && !isLoading && (
 				<p className='text-red-500 bg-red-100 p-3 rounded mb-4'>{error}</p>
 			)}
 
-			{/* Formulário para Adicionar Scanner */}
 			<div className='mb-6 p-4 rounded shadow-sm'>
-				<h2 className='text-xl font-semibold mb-3'>Adicionar Novo Scanner</h2>
-				<AddScannerForm
-					onScannerCreated={handleScannerAdded}
-					onCancel={() => {}}
-				/>
+				{!showForm ? (
+					<button
+						onClick={() => setShowForm(true)}
+						className='bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105'>
+						Adicionar Novo Scanner
+					</button>
+				) : (
+					<AddScannerForm
+						onScannerCreated={handleScannerAdded}
+						onCancel={() => setShowForm(false)}
+					/>
+				)}
 			</div>
 
-			{/* Formulário de Edição (condicional) */}
 			{editingScannerId !== null && (
 				<div className='mb-6 p-4 border rounded shadow-sm bg-yellow-50'>
-					{/* ... (código do formulário de edição mantido igual) ... */}
 					<h2 className='text-xl font-semibold mb-3'>
 						Editar Scanner #{editingScannerId}
 					</h2>
@@ -387,7 +349,6 @@ function DashboardPage() {
 				</div>
 			)}
 
-			{/* Lista de Scanners */}
 			<div className='bg-gray-800 p-6 rounded-lg shadow-lg'>
 				<h2 className='text-xl font-semibold mb-3'>Scanners Registados</h2>
 				{isLoading ? (
@@ -397,7 +358,6 @@ function DashboardPage() {
 				) : (
 					<div className='space-y-4'>
 						{scanners.map((scanner) => (
-							// 6. AJUSTE: Mudar a cor se o scanner estiver inativo
 							<div
 								key={scanner.id}
 								className={`p-4 rounded-md flex justify-between items-center ${
@@ -411,16 +371,12 @@ function DashboardPage() {
 										{scanner.conditionType}: {scanner.value}
 									</p>
 								</div>
-								{!scanner.isActive && (
-									<span className='text-xs font-semibold bg-yellow-400 text-yellow-900 py-1 px-3 rounded-full'>
-										DISPARADO
-									</span>
-								)}
-								{/* Botões de Ação */}
-								<div className='flex items-center gap-3 mt-2 sm:mt-0'>
-									{" "}
-									{/* ALTERADO: gap e items-center */}
-									{/* Botão Editar (agora com ícone) */}
+								<div className='flex items-center gap-3'>
+									{!scanner.isActive && (
+										<span className='text-xs font-semibold bg-yellow-400 text-yellow-900 py-1 px-3 rounded-full'>
+											DISPARADO
+										</span>
+									)}
 									<button
 										onClick={() => handleEditClick(scanner)}
 										disabled={editingScannerId === scanner.id}
@@ -429,19 +385,14 @@ function DashboardPage() {
 												? "bg-gray-400 cursor-not-allowed"
 												: "bg-yellow-500 hover:bg-yellow-600"
 										} transition-colors duration-150`}
-										title='Editar Scanner' // Tooltip simples
-									>
-										<FaEdit /> {/* NOVO: Ícone de Editar */}
+										title='Editar Scanner'>
+										<FaEdit />
 									</button>
-									{/* NOVO: Botão Apagar com Ícone */}
 									<button
-										onClick={() =>
-											handleDeleteConfirmation(scanner.id, scanner.name)
-										} // Chama a confirmação
+										onClick={() => handleDeleteConfirmation(scanner.id, scanner.name)}
 										className='p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-150'
-										title='Apagar Scanner' // Tooltip simples
-									>
-										<FaTrash /> {/* Ícone de Apagar */}
+										title='Apagar Scanner'>
+										<FaTrash />
 									</button>
 								</div>
 							</div>
