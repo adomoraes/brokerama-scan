@@ -1,10 +1,14 @@
-import React, { useState, useEffect, useCallback } from "react"
+import React, { useState, useEffect, useCallback, type ReactNode } from "react"
 import { FaTrash, FaEdit } from "react-icons/fa"
 import { AddScannerForm } from "../components/AddScannerForm"
 import { toast } from "react-toastify" // NOVO: Importa toast
 
 // Definindo uma interface para o tipo Scanner
 interface Scanner {
+	isActive: any
+	assetTicker: ReactNode
+	conditionType: ReactNode
+	value: ReactNode
 	id: number
 	name: string
 	url: string
@@ -384,43 +388,34 @@ function DashboardPage() {
 			)}
 
 			{/* Lista de Scanners */}
-			<div className='p-4 rounded shadow-sm'>
+			<div className='bg-gray-800 p-6 rounded-lg shadow-lg'>
 				<h2 className='text-xl font-semibold mb-3'>Scanners Registados</h2>
 				{isLoading ? (
 					<p>A carregar scanners...</p>
 				) : scanners.length === 0 ? (
 					<p>Nenhum scanner encontrado.</p>
 				) : (
-					<ul className='space-y-3'>
+					<div className='space-y-4'>
 						{scanners.map((scanner) => (
-							<li
+							// 6. AJUSTE: Mudar a cor se o scanner estiver inativo
+							<div
 								key={scanner.id}
-								className='p-3 rounded flex flex-col sm:flex-row justify-between items-start sm:items-center bg-gray-700'>
+								className={`p-4 rounded-md flex justify-between items-center ${
+									scanner.isActive ? "bg-gray-700" : "bg-gray-600 opacity-60"
+								}`}>
 								<div>
-									<p className='font-semibold'>
-										{scanner.name}{" "}
-										<span className='text-sm font-normal text-gray-500'>
-											(ID: {scanner.id})
-										</span>
+									<span className='font-bold text-lg'>
+										{scanner.assetTicker}
+									</span>
+									<p className='text-sm text-gray-300'>
+										{scanner.conditionType}: {scanner.value}
 									</p>
-									<p className='text-sm text-gray-600'>URL: {scanner.url}</p>
-									<p className='text-sm text-gray-600'>
-										Intervalo: {scanner.intervalMinutes} minutos
-									</p>
-									{scanner.status && (
-										<p className='text-sm text-gray-600'>
-											Status:{" "}
-											<span
-												className={`font-medium ${
-													scanner.status === "active"
-														? "text-green-600"
-														: "text-red-600"
-												}`}>
-												{scanner.status}
-											</span>
-										</p>
-									)}
 								</div>
+								{!scanner.isActive && (
+									<span className='text-xs font-semibold bg-yellow-400 text-yellow-900 py-1 px-3 rounded-full'>
+										DISPARADO
+									</span>
+								)}
 								{/* Botões de Ação */}
 								<div className='flex items-center gap-3 mt-2 sm:mt-0'>
 									{" "}
@@ -429,7 +424,7 @@ function DashboardPage() {
 									<button
 										onClick={() => handleEditClick(scanner)}
 										disabled={editingScannerId === scanner.id}
-										className={`p-2 rounded-full text-white ${
+										className={`hidden p-2 rounded-full text-white ${
 											editingScannerId === scanner.id
 												? "bg-gray-400 cursor-not-allowed"
 												: "bg-yellow-500 hover:bg-yellow-600"
@@ -449,9 +444,9 @@ function DashboardPage() {
 										<FaTrash /> {/* Ícone de Apagar */}
 									</button>
 								</div>
-							</li>
+							</div>
 						))}
-					</ul>
+					</div>
 				)}
 			</div>
 		</div>
