@@ -24,10 +24,20 @@ interface EditFormData {
 	url: string
 	intervalMinutes: string
 }
+interface Alert {
+	id: number
+	message: string
+	triggeredAt: string // A data virá como string
+	scanner: {
+		assetTicker: string
+	}
+}
 
 function DashboardPage() {
 	const [scanners, setScanners] = useState<Scanner[]>([])
 	const [error, setError] = useState<string | null>(null)
+	const [loadingAlerts, setLoadingAlerts] = useState(true)
+	const [alerts, setAlerts] = useState<Alert[]>([]) // 2. NOVO ESTADO para alertas
 	const [isLoading, setIsLoading] = useState<boolean>(true)
 	const [editingScannerId, setEditingScannerId] = useState<number | null>(null)
 	const [editFormData, setEditFormData] = useState<EditFormData>({
@@ -59,14 +69,30 @@ function DashboardPage() {
 			}
 
 			const data: Scanner[] = await response.json()
+
+			// Fetch alerts separately
+			const alertsResponse = await fetch("http://localhost:3001/api/alerts", {
+				headers: {
+					Authorization: `Bearer ${token}`,
+				},
+			})
+			if (!alertsResponse.ok)
+				throw new Error(`Erro ao buscar alertas: ${alertsResponse.statusText}`)
+			const alertsData: Alert[] = await alertsResponse.json()
+
 			setScanners(data)
+			setAlerts(alertsData)
 		} catch (err) {
 			console.error(err)
-			const errorMessage = err instanceof Error ? err.message : "Ocorreu um erro desconhecido ao buscar scanners."
+			const errorMessage =
+				err instanceof Error
+					? err.message
+					: "Ocorreu um erro desconhecido ao buscar scanners."
 			setError(errorMessage)
 			toast.error(errorMessage)
 		} finally {
 			setIsLoading(false)
+			setLoadingAlerts(false)
 		}
 	}, [])
 
@@ -100,7 +126,9 @@ function DashboardPage() {
 				throw new Error(errorMsg)
 			}
 
-			setScanners((prevScanners) => prevScanners.filter((scanner) => scanner.id !== id))
+			setScanners((prevScanners) =>
+				prevScanners.filter((scanner) => scanner.id !== id)
+			)
 			setError(null)
 
 			toast.update(toastId, {
@@ -111,7 +139,10 @@ function DashboardPage() {
 			})
 		} catch (err) {
 			console.error(err)
-			const errorText = err instanceof Error ? err.message : "Erro desconhecido ao apagar scanner."
+			const errorText =
+				err instanceof Error
+					? err.message
+					: "Erro desconhecido ao apagar scanner."
 			setError(errorText)
 			toast.update(toastId, {
 				render: errorText,
@@ -123,7 +154,11 @@ function DashboardPage() {
 	}
 
 	const handleDeleteConfirmation = (id: number, name: string) => {
-		const ConfirmationContent = ({ closeToast }: { closeToast?: () => void }) => (
+		const ConfirmationContent = ({
+			closeToast,
+		}: {
+			closeToast?: () => void
+		}) => (
 			<div>
 				<p className='mb-2'>
 					Tem a certeza que deseja apagar o scanner "{name}"?
@@ -185,7 +220,11 @@ function DashboardPage() {
 			return
 		}
 
-		if (!editFormData.name || !editFormData.url || !editFormData.intervalMinutes) {
+		if (
+			!editFormData.name ||
+			!editFormData.url ||
+			!editFormData.intervalMinutes
+		) {
 			toast.error("Todos os campos são obrigatórios para edição.")
 			return
 		}
@@ -198,18 +237,21 @@ function DashboardPage() {
 		const toastId = toast.loading("A atualizar scanner...")
 
 		try {
-			const response = await fetch(`http://localhost:3001/api/scanners/${editingScannerId}`, {
-				method: "PUT",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({
-					name: editFormData.name,
-					url: editFormData.url,
-					intervalMinutes: intervalNum,
-				}),
-			})
+			const response = await fetch(
+				`http://localhost:3001/api/scanners/${editingScannerId}`,
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${token}`,
+					},
+					body: JSON.stringify({
+						name: editFormData.name,
+						url: editFormData.url,
+						intervalMinutes: intervalNum,
+					}),
+				}
+			)
 
 			if (!response.ok) {
 				let errorMsg = `Erro ao atualizar scanner: ${response.statusText}`
@@ -237,7 +279,10 @@ function DashboardPage() {
 			})
 		} catch (err) {
 			console.error(err)
-			const errorText = err instanceof Error ? err.message : "Erro desconhecido ao atualizar scanner."
+			const errorText =
+				err instanceof Error
+					? err.message
+					: "Erro desconhecido ao atualizar scanner."
 			setError(errorText)
 			toast.update(toastId, {
 				render: errorText,
@@ -349,6 +394,29 @@ function DashboardPage() {
 				</div>
 			)}
 
+			{/* 5. NOVA SECÇÃO para exibir Alertas */}
+			<div className='bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-lg shadow-lg mb-8'>
+				<h2 className='text-2xl font-semibold mb-4'>Meus Alertas Recentes</h2>
+				{loadingAlerts && <p>A carregar alertas...</p>}
+				{error && <p className='text-red-500'>{error}</p>}
+				{!loadingAlerts && !error && alerts.length === 0 && (
+					<p>Nenhum alerta foi disparado ainda.</p>
+				)}
+				<div className='space-y-3'>
+					{alerts.map((alert) => (
+						<div key={alert.id} className='bg-white p-3 rounded shadow'>
+							<span className='font-bold text-lg text-gray-900'>
+								{alert.scanner.assetTicker}
+							</span>
+							<p className='text-sm text-gray-700'>{alert.message}</p>
+							<p className='text-xs text-gray-500 mt-1'>
+								{new Date(alert.triggeredAt).toLocaleString("pt-BR")}
+							</p>
+						</div>
+					))}
+				</div>
+			</div>
+
 			<div className='bg-gray-800 p-6 rounded-lg shadow-lg'>
 				<h2 className='text-xl font-semibold mb-3'>Scanners Registados</h2>
 				{isLoading ? (
@@ -389,7 +457,9 @@ function DashboardPage() {
 										<FaEdit />
 									</button>
 									<button
-										onClick={() => handleDeleteConfirmation(scanner.id, scanner.name)}
+										onClick={() =>
+											handleDeleteConfirmation(scanner.id, scanner.name)
+										}
 										className='p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-150'
 										title='Apagar Scanner'>
 										<FaTrash />
