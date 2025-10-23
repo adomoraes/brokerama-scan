@@ -2,8 +2,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { HomePage } from "./pages/HomePage"
 import { LoginPage } from "./pages/LoginPage"
 import { RegisterPage } from "./pages/RegisterPage"
-// 1. Importar os novos componentes
-import { DashboardPage } from "./pages/DashboardPage"
+// 1. Importar os novos componentes (ajustado para default import)
+import DashboardPage from "./pages/DashboardPage"
 import { ProtectedRoute } from "./components/ProtectedRoute"
 
 function App() {
