@@ -1,29 +1,18 @@
-import React, { useState, useEffect, useCallback, type ReactNode } from "react"
-import { FaTrash, FaEdit } from "react-icons/fa"
+import React, { useState, useEffect, useCallback } from "react"
+import { FaTrash, FaEdit, FaChevronDown, FaChevronUp } from "react-icons/fa"
 import { AddScannerForm } from "../components/AddScannerForm"
 import { toast } from "react-toastify"
 
 // Definindo uma interface para o tipo Scanner
 interface Scanner {
-	isActive: any
-	assetTicker: ReactNode
-	conditionType: ReactNode
-	value: ReactNode
 	id: number
-	name: string
-	url: string
-	intervalMinutes: number
-	status?: string
+	assetTicker: string
+	conditionType: string
+	value: number
+	isActive: boolean
 	createdAt: string
-	updatedAt: string
 }
 
-// Interface para os dados do formulário de edição
-interface EditFormData {
-	name: string
-	url: string
-	intervalMinutes: string
-}
 interface Alert {
 	id: number
 	message: string
@@ -33,19 +22,30 @@ interface Alert {
 	}
 }
 
+interface GlobalQuote {
+	"01. symbol": string
+	"02. open": string
+	"03. high": string
+	"04. low": string
+	"05. price": string
+	"06. volume": string
+	"07. latest trading day": string
+	"08. previous close": string
+	"09. change": string
+	"10. change percent": string
+}
+
 function DashboardPage() {
 	const [scanners, setScanners] = useState<Scanner[]>([])
 	const [error, setError] = useState<string | null>(null)
 	const [loadingAlerts, setLoadingAlerts] = useState(true)
-	const [alerts, setAlerts] = useState<Alert[]>([]) // 2. NOVO ESTADO para alertas
+	const [alerts, setAlerts] = useState<Alert[]>([])
 	const [isLoading, setIsLoading] = useState<boolean>(true)
-	const [editingScannerId, setEditingScannerId] = useState<number | null>(null)
-	const [editFormData, setEditFormData] = useState<EditFormData>({
-		name: "",
-		url: "",
-		intervalMinutes: "",
-	})
 	const [showForm, setShowForm] = useState(false)
+
+	const [quotes, setQuotes] = useState<{ [key: string]: GlobalQuote }>({})
+	const [loadingQuotes, setLoadingQuotes] = useState<{ [key: string]: boolean }>({})
+	const [expandedScanners, setExpandedScanners] = useState<Set<number>>(new Set())
 
 	const fetchScanners = useCallback(async () => {
 		setIsLoading(true)
@@ -70,7 +70,6 @@ function DashboardPage() {
 
 			const data: Scanner[] = await response.json()
 
-			// Fetch alerts separately
 			const alertsResponse = await fetch("http://localhost:3001/api/alerts", {
 				headers: {
 					Authorization: `Bearer ${token}`,
@@ -87,7 +86,7 @@ function DashboardPage() {
 			const errorMessage =
 				err instanceof Error
 					? err.message
-					: "Ocorreu um erro desconhecido ao buscar scanners."
+					: "Ocorreu um erro desconhecido."
 			setError(errorMessage)
 			toast.error(errorMessage)
 		} finally {
@@ -99,6 +98,49 @@ function DashboardPage() {
 	useEffect(() => {
 		fetchScanners()
 	}, [fetchScanners])
+
+	const fetchQuote = async (ticker: string) => {
+		const token = localStorage.getItem("brokerama_token")
+		if (!token) return
+
+		setLoadingQuotes((prev) => ({ ...prev, [ticker]: true }))
+		try {
+			const response = await fetch(`http://localhost:3001/api/quote/${ticker}`, {
+				headers: {
+					Authorization: `Bearer ${token}`,
+				},
+			})
+			if (!response.ok) {
+				throw new Error("Cotação não encontrada ou limite de API atingido.")
+			}
+			const data = await response.json()
+			if (data["Global Quote"]) {
+				setQuotes((prev) => ({ ...prev, [ticker]: data["Global Quote"] }))
+			} else {
+				throw new Error("Formato de resposta da cotação inválido.")
+			}
+		} catch (error) {
+			toast.error(`Erro ao buscar cotação para ${ticker}.`)
+		} finally {
+			setLoadingQuotes((prev) => ({ ...prev, [ticker]: false }))
+		}
+	}
+
+	const toggleScannerExpansion = (scannerId: number) => {
+		setExpandedScanners((prev) => {
+			const newSet = new Set(prev)
+			if (newSet.has(scannerId)) {
+				newSet.delete(scannerId)
+			} else {
+				newSet.add(scannerId)
+				const scanner = scanners.find((s) => s.id === scannerId)
+				if (scanner && !quotes[scanner.assetTicker]) {
+					fetchQuote(scanner.assetTicker)
+				}
+			}
+			return newSet
+		})
+	}
 
 	const handleDelete = async (id: number) => {
 		const token = localStorage.getItem("brokerama_token")
@@ -153,15 +195,11 @@ function DashboardPage() {
 		}
 	}
 
-	const handleDeleteConfirmation = (id: number, name: string) => {
-		const ConfirmationContent = ({
-			closeToast,
-		}: {
-			closeToast?: () => void
-		}) => (
+	const handleDeleteConfirmation = (id: number, assetTicker: string) => {
+		const ConfirmationContent = ({ closeToast }: { closeToast?: () => void }) => (
 			<div>
 				<p className='mb-2'>
-					Tem a certeza que deseja apagar o scanner "{name}"?
+					Tem a certeza que deseja apagar o scanner "{assetTicker}"?
 				</p>
 				<div className='flex justify-end gap-2'>
 					<button
@@ -189,108 +227,6 @@ function DashboardPage() {
 			closeButton: false,
 			theme: "colored",
 		})
-	}
-
-	const handleEditClick = (scanner: Scanner) => {
-		setEditingScannerId(scanner.id)
-		setEditFormData({
-			name: scanner.name,
-			url: scanner.url,
-			intervalMinutes: String(scanner.intervalMinutes),
-		})
-	}
-
-	const handleCancelEdit = () => {
-		setEditingScannerId(null)
-		setEditFormData({ name: "", url: "", intervalMinutes: "" })
-	}
-
-	const handleEditFormChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-		const { name, value } = event.target
-		setEditFormData((prevData) => ({ ...prevData, [name]: value }))
-	}
-
-	const handleUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
-		event.preventDefault()
-		if (editingScannerId === null) return
-
-		const token = localStorage.getItem("brokerama_token")
-		if (!token) {
-			toast.error("Autenticação necessária.")
-			return
-		}
-
-		if (
-			!editFormData.name ||
-			!editFormData.url ||
-			!editFormData.intervalMinutes
-		) {
-			toast.error("Todos os campos são obrigatórios para edição.")
-			return
-		}
-		const intervalNum = parseInt(editFormData.intervalMinutes, 10)
-		if (isNaN(intervalNum) || intervalNum <= 0) {
-			toast.error("O intervalo deve ser um número positivo.")
-			return
-		}
-
-		const toastId = toast.loading("A atualizar scanner...")
-
-		try {
-			const response = await fetch(
-				`http://localhost:3001/api/scanners/${editingScannerId}`,
-				{
-					method: "PUT",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-					body: JSON.stringify({
-						name: editFormData.name,
-						url: editFormData.url,
-						intervalMinutes: intervalNum,
-					}),
-				}
-			)
-
-			if (!response.ok) {
-				let errorMsg = `Erro ao atualizar scanner: ${response.statusText}`
-				try {
-					const errorData = await response.json()
-					errorMsg = errorData.message || errorMsg
-				} catch (_) {}
-				throw new Error(errorMsg)
-			}
-
-			const updatedScanner: Scanner = await response.json()
-
-			setScanners((prevScanners) =>
-				prevScanners.map((scanner) =>
-					scanner.id === editingScannerId ? updatedScanner : scanner
-				)
-			)
-			handleCancelEdit()
-			setError(null)
-			toast.update(toastId, {
-				render: "Scanner atualizado com sucesso!",
-				type: "success",
-				isLoading: false,
-				autoClose: 3000,
-			})
-		} catch (err) {
-			console.error(err)
-			const errorText =
-				err instanceof Error
-					? err.message
-					: "Erro desconhecido ao atualizar scanner."
-			setError(errorText)
-			toast.update(toastId, {
-				render: errorText,
-				type: "error",
-				isLoading: false,
-				autoClose: 5000,
-			})
-		}
 	}
 
 	const handleScannerAdded = (newScanner: Scanner) => {
@@ -322,79 +258,6 @@ function DashboardPage() {
 				)}
 			</div>
 
-			{editingScannerId !== null && (
-				<div className='mb-6 p-4 border rounded shadow-sm bg-yellow-50'>
-					<h2 className='text-xl font-semibold mb-3'>
-						Editar Scanner #{editingScannerId}
-					</h2>
-					<form onSubmit={handleUpdate}>
-						<div className='mb-3'>
-							<label
-								htmlFor='edit-name'
-								className='block text-sm font-medium text-gray-700'>
-								Nome:
-							</label>
-							<input
-								type='text'
-								id='edit-name'
-								name='name'
-								value={editFormData.name}
-								onChange={handleEditFormChange}
-								required
-								className='mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'
-							/>
-						</div>
-						<div className='mb-3'>
-							<label
-								htmlFor='edit-url'
-								className='block text-sm font-medium text-gray-700'>
-								URL:
-							</label>
-							<input
-								type='url'
-								id='edit-url'
-								name='url'
-								value={editFormData.url}
-								onChange={handleEditFormChange}
-								required
-								className='mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'
-							/>
-						</div>
-						<div className='mb-3'>
-							<label
-								htmlFor='edit-intervalMinutes'
-								className='block text-sm font-medium text-gray-700'>
-								Intervalo (minutos):
-							</label>
-							<input
-								type='number'
-								id='edit-intervalMinutes'
-								name='intervalMinutes'
-								value={editFormData.intervalMinutes}
-								onChange={handleEditFormChange}
-								required
-								min='1'
-								className='mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'
-							/>
-						</div>
-						<div className='flex gap-2'>
-							<button
-								type='submit'
-								className='px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600'>
-								Guardar Alterações
-							</button>
-							<button
-								type='button'
-								onClick={handleCancelEdit}
-								className='px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400'>
-								Cancelar
-							</button>
-						</div>
-					</form>
-				</div>
-			)}
-
-			{/* 5. NOVA SECÇÃO para exibir Alertas */}
 			<div className='bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-lg shadow-lg mb-8'>
 				<h2 className='text-2xl font-semibold mb-4'>Meus Alertas Recentes</h2>
 				{loadingAlerts && <p>A carregar alertas...</p>}
@@ -425,48 +288,68 @@ function DashboardPage() {
 					<p>Nenhum scanner encontrado.</p>
 				) : (
 					<div className='space-y-4'>
-						{scanners.map((scanner) => (
-							<div
-								key={scanner.id}
-								className={`p-4 rounded-md flex justify-between items-center ${
-									scanner.isActive ? "bg-gray-700" : "bg-gray-600 opacity-60"
-								}`}>
-								<div>
-									<span className='font-bold text-lg'>
-										{scanner.assetTicker}
-									</span>
-									<p className='text-sm text-gray-300'>
-										{scanner.conditionType}: {scanner.value}
-									</p>
-								</div>
-								<div className='flex items-center gap-3'>
-									{!scanner.isActive && (
-										<span className='text-xs font-semibold bg-yellow-400 text-yellow-900 py-1 px-3 rounded-full'>
-											DISPARADO
-										</span>
+						{scanners.map((scanner) => {
+							const isExpanded = expandedScanners.has(scanner.id)
+							const quote = quotes[scanner.assetTicker]
+							const isLoadingQuote = loadingQuotes[scanner.assetTicker]
+
+							return (
+								<div
+									key={scanner.id}
+									className={`p-4 rounded-md transition-all duration-300 ${scanner.isActive ? "bg-gray-700" : "bg-gray-600 opacity-60"}`}>
+									<div className='flex justify-between items-center'>
+										<div>
+											<span className='font-bold text-lg'>
+												{scanner.assetTicker}
+											</span>
+											<p className='text-sm text-gray-300'>
+												{scanner.conditionType}: {scanner.value}
+											</p>
+											<p className='text-xs text-gray-400 mt-1'>
+												Criado em:{" "}
+												{new Date(scanner.createdAt).toLocaleDateString("pt-BR")}
+											</p>
+										</div>
+										<div className='flex items-center gap-3'>
+											{!scanner.isActive && (
+												<span className='text-xs font-semibold bg-yellow-400 text-yellow-900 py-1 px-3 rounded-full'>
+													DISPARADO
+												</span>
+											)}
+											<button
+												onClick={() => toggleScannerExpansion(scanner.id)}
+												className='p-2 bg-gray-600 text-white rounded-full hover:bg-gray-500 transition-colors'>
+												{isExpanded ? <FaChevronUp /> : <FaChevronDown />}
+											</button>
+											<button
+												onClick={() => handleDeleteConfirmation(scanner.id, scanner.assetTicker)}
+												className='p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-150'
+												title='Apagar Scanner'>
+												<FaTrash />
+											</button>
+										</div>
+									</div>
+
+									{isExpanded && (
+										<div className='mt-4 pt-4 border-t border-gray-600'>
+											{isLoadingQuote && <p>A carregar cotação...</p>}
+											{quote && (
+												<div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 text-sm'>
+													{Object.entries(quote).map(([key, value]) => (
+														<div key={key}>
+															<p className='font-semibold text-gray-400'>
+																{key.substring(4)}
+															</p>
+															<p className='text-white'>{value}</p>
+														</div>
+													))}
+												</div>
+											)}
+										</div>
 									)}
-									<button
-										onClick={() => handleEditClick(scanner)}
-										disabled={editingScannerId === scanner.id}
-										className={`hidden p-2 rounded-full text-white ${
-											editingScannerId === scanner.id
-												? "bg-gray-400 cursor-not-allowed"
-												: "bg-yellow-500 hover:bg-yellow-600"
-										} transition-colors duration-150`}
-										title='Editar Scanner'>
-										<FaEdit />
-									</button>
-									<button
-										onClick={() =>
-											handleDeleteConfirmation(scanner.id, scanner.name)
-										}
-										className='p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-150'
-										title='Apagar Scanner'>
-										<FaTrash />
-									</button>
 								</div>
-							</div>
-						))}
+							)
+						})}
 					</div>
 				)}
 			</div>
